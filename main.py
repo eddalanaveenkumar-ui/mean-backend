@@ -26,6 +26,8 @@ firebase_admin.initialize_app(cred)
 client = MongoClient(MONGO_URI)
 db = client["mean_ai_db"]
 users_collection = db["users"]
+chats_collection = db["chats"]
+classes_collection = db["classes"]
 
 # Create index on email to ensure uniqueness
 users_collection.create_index("email", unique=True)
@@ -84,6 +86,15 @@ class ApiKeyUpdate(BaseModel):
 
 class GoogleToken(BaseModel):
     token: str
+
+class ChatSync(BaseModel):
+    chat_id: str
+    title: str
+    messages: list
+
+class ClassCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
 
 # --- FastAPI App Initializer ---    
 app = FastAPI(title="Mean AI Backend")
@@ -177,3 +188,52 @@ def update_api_key(data: ApiKeyUpdate, current_user: dict = Depends(get_current_
 @app.get("/")
 def health_check():
     return {"status": "ok", "app": "Mean AI Backend"}
+
+# --- Chat Endpoints ---
+@app.get("/chats")
+def get_chats(current_user: dict = Depends(get_current_user)):
+    user_chats = list(chats_collection.find({"user_email": current_user["email"]}, {"_id": 0}))
+    return {"chats": user_chats}
+
+@app.post("/chats")
+def sync_chat(chat: ChatSync, current_user: dict = Depends(get_current_user)):
+    chat_dict = chat.dict()
+    chat_dict["user_email"] = current_user["email"]
+    chat_dict["updated_at"] = datetime.utcnow()
+    
+    chats_collection.update_one(
+        {"user_email": current_user["email"], "chat_id": chat.chat_id},
+        {"$set": chat_dict},
+        upsert=True
+    )
+    return {"message": "Chat synced"}
+
+@app.delete("/chats/{chat_id}")
+def delete_chat(chat_id: str, current_user: dict = Depends(get_current_user)):
+    chats_collection.delete_one({"user_email": current_user["email"], "chat_id": chat_id})
+    return {"message": "Chat deleted"}
+
+# --- Class Endpoints ---
+@app.get("/classes")
+def get_classes(current_user: dict = Depends(get_current_user)):
+    user_classes = list(classes_collection.find({"user_email": current_user["email"]}, {"_id": 0}))
+    return {"classes": user_classes}
+
+@app.post("/classes")
+def create_class(cls: ClassCreate, current_user: dict = Depends(get_current_user)):
+    import uuid
+    class_id = str(uuid.uuid4())
+    cls_dict = {
+        "class_id": class_id,
+        "user_email": current_user["email"],
+        "name": cls.name,
+        "description": cls.description,
+        "created_at": datetime.utcnow()
+    }
+    classes_collection.insert_one(cls_dict)
+    return {"message": "Class created", "class_id": class_id}
+
+@app.delete("/classes/{class_id}")
+def delete_class(class_id: str, current_user: dict = Depends(get_current_user)):
+    classes_collection.delete_one({"user_email": current_user["email"], "class_id": class_id})
+    return {"message": "Class deleted"}
