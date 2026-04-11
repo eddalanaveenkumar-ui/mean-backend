@@ -95,6 +95,7 @@ class ChatSync(BaseModel):
 class ClassCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    slides: list = []
 
 # --- FastAPI App Initializer ---    
 app = FastAPI(title="Mean AI Backend")
@@ -228,6 +229,7 @@ def create_class(cls: ClassCreate, current_user: dict = Depends(get_current_user
         "user_email": current_user["email"],
         "name": cls.name,
         "description": cls.description,
+        "slides": cls.slides,
         "created_at": datetime.utcnow()
     }
     classes_collection.insert_one(cls_dict)
