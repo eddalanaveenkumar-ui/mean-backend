@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
 import os
+import json
 
 import firebase_admin
 from firebase_admin import credentials, auth as firebase_auth
@@ -19,8 +20,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 
 # --- Firebase Setup ---
-cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), "mean-firebase-adminsdk.json"))
-firebase_admin.initialize_app(cred)
+# Load Firebase credentials from environment variable (JSON string)
+firebase_creds_json = os.environ.get("FIREBASE_ADMIN_SDK")
+if firebase_creds_json:
+    cred = credentials.Certificate(json.loads(firebase_creds_json))
+else:
+    # Fallback to local file for development
+    cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), "mean-firebase-adminsdk.json"))
+
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred)
 
 # --- Database Setup ---
 client = MongoClient(MONGO_URI)
