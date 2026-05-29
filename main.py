@@ -102,10 +102,17 @@ app = FastAPI(title="Mean AI Backend")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "https://www.meanai.site", "https://meanai.site", "https://mean-85713.web.app", "http://localhost:3000", "http://localhost:5173"],
+    allow_origins=[
+        "https://www.meanai.site",
+        "https://meanai.site",
+        "https://mean-85713.web.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # --- API Endpoints ---
